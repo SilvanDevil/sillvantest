@@ -37,4 +37,54 @@ define('TOKEN','dhsilvan');
             exit;
         }
     }
+
+    function responseMsg(){
+
+    //get post data, May be due to the different environments
+    $postStr = $GLOBALS["HTTP_RAW_POST_DATA"]; //接收微信发来的XML数据
+
+    //extract post data
+    if(!empty($postStr)){
+
+        //解析post来的XML为一个对象$postObj
+        $postObj = simplexml_load_string($postStr, 'SimpleXMLElement', LIBXML_NOCDATA);
+
+        $fromUsername = $postObj->FromUserName; //请求消息的用户
+        $toUsername = $postObj->ToUserName; //"我"的公众号id
+        $keyword = trim($postObj->Content); //消息内容
+        $time = time(); //时间戳
+        $msgtype = 'text'; //消息类型：文本
+        $textTpl = "<xml>
+      <ToUserName><![CDATA[%s]]></ToUserName>
+      <FromUserName><![CDATA[%s]]></FromUserName>
+      <CreateTime>%s</CreateTime>
+      <MsgType><![CDATA[%s]]></MsgType>
+      <Content><![CDATA[%s]]></Content>
+      </xml>";
+
+        if($keyword == 'hehe'){
+            $contentStr = 'hello world!!!';
+            $resultStr = sprintf($textTpl, $fromUsername, $toUsername, $time, $msgtype, $contentStr);
+            echo $resultStr;
+            exit();
+        }else{
+            $contentStr = '输入hehe试试';
+            $resultStr = sprintf($textTpl, $fromUsername, $toUsername, $time, $msgtype, $contentStr);
+            echo $resultStr;
+            exit();
+        }
+
+    }else {
+        echo "";
+        exit;
+    }
+        if($postObj->MsgType == 'event'){ //如果XML信息里消息类型为event
+            if($postObj->Event == 'subscribe'){ //如果是订阅事件
+                $contentStr = "欢迎订阅misaka去年夏天！\n更多精彩内容：http://blog.csdn.net/misakaqunianxiatian";
+                $resultStr = sprintf($textTpl, $fromUsername, $toUsername, $time, $msgtype, $contentStr);
+                echo $resultStr;
+                exit();
+            }
+        }
+}
 ?>
