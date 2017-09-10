@@ -1,90 +1,105 @@
 <?php
-//定义常量token 
-define('TOKEN','dhsilvan'); 
-    
-//检查标签
-    function checkSignature()
+/**
+ * wechat php test
+ */
+
+//define your token
+define("TOKEN", "dhsilvan");
+$wechatObj = new wechatCallbackapiTest();
+//$wechatObj->valid();//接口验证
+$wechatObj->responseMsg();//调用回复消息方法
+class wechatCallbackapiTest
+{
+    public function valid()
     {
-        //先获取到这三个参数
-        $signature = $_GET['signature'];   
-        $nonce = $_GET['nonce']; 
-        $timestamp = $_GET['timestamp']; 
-              //把这三个参数存到一个数组里面
-        $tmpArr = array($timestamp,$nonce,TOKEN); 
-        //进行字典排序
-        sort($tmpArr);  
-    
-        //把数组中的元素合并成字符串，impode()函数是用来将一个数组合并成字符串的
-        $tmpStr = implode($tmpArr);  
-        //sha1加密，调用sha1函数
-               $tmpStr = sha1($tmpStr);
-        //判断加密后的字符串是否和signature相等
-        if($tmpStr == $signature) 
-        {
-            
-            return true;
-        }
-        return false;
-    }
-//如果相等，验证成功就返回echostr
-    if(checkSignature())
-     {    
-        //返回echostr
-        $echostr = $_GET['echostr'];
-        if($echostr)   
-        {
-            echo $echostr;
+        $echoStr = $_GET["echostr"];
+
+        //valid signature , option
+        if($this->checkSignature()){
+            echo $echoStr;
             exit;
         }
     }
 
-    function responseMsg(){
+    public function responseMsg()
+    {
+        //get post data, May be due to the different environments
+        $postStr = $GLOBALS["HTTP_RAW_POST_DATA"];
 
-    //get post data, May be due to the different environments
-    $postStr = $GLOBALS["HTTP_RAW_POST_DATA"]; //接收微信发来的XML数据
+        //extract post data
+        if (!empty($postStr)){
+            /* libxml_disable_entity_loader is to prevent XML eXternal Entity Injection,
+             the best way is to check the validity of xml by yourself */
+            libxml_disable_entity_loader(true);
+            $postObj = simplexml_load_string($postStr, 'SimpleXMLElement', LIBXML_NOCDATA);
+            $fromUsername = $postObj->FromUserName;
+            $toUsername = $postObj->ToUserName;
+            $keyword = trim($postObj->Content);
+            $time = time();
+            $msgType = $postObj->MsgType;//消息类型
+            $event = $postObj->Event;//时间类型，subscribe（订阅）、unsubscribe（取消订阅）
+            $textTpl = "<xml>
+  <ToUserName><![CDATA[%s]]></ToUserName>
+  <FromUserName><![CDATA[%s]]></FromUserName>
+  <CreateTime>%s</CreateTime>
+  <MsgType><![CDATA[%s]]></MsgType>
+  <Content><![CDATA[%s]]></Content>
+  <FuncFlag>0</FuncFlag>
+  </xml>";
 
-    //extract post data
-    if(!empty($postStr)){
-
-        //解析post来的XML为一个对象$postObj
-        $postObj = simplexml_load_string($postStr, 'SimpleXMLElement', LIBXML_NOCDATA);
-
-        $fromUsername = $postObj->FromUserName; //请求消息的用户
-        $toUsername = $postObj->ToUserName; //"我"的公众号id
-        $keyword = trim($postObj->Content); //消息内容
-        $time = time(); //时间戳
-        $msgtype = 'text'; //消息类型：文本
-        $textTpl = "<xml>
-      <ToUserName><![CDATA[%s]]></ToUserName>
-      <FromUserName><![CDATA[%s]]></FromUserName>
-      <CreateTime>%s</CreateTime>
-      <MsgType><![CDATA[%s]]></MsgType>
-      <Content><![CDATA[%s]]></Content>
-      </xml>";
-
-        if($keyword == 'hehe'){
-            $contentStr = 'hello world!!!';
-            $resultStr = sprintf($textTpl, $fromUsername, $toUsername, $time, $msgtype, $contentStr);
-            echo $resultStr;
-            exit();
-        }else{
-            $contentStr = '输入hehe试试';
-            $resultStr = sprintf($textTpl, $fromUsername, $toUsername, $time, $msgtype, $contentStr);
-            echo $resultStr;
-            exit();
-        }
-
-    }else {
-        echo "";
-        exit;
-    }
-        if($postObj->MsgType == 'event'){ //如果XML信息里消息类型为event
-            if($postObj->Event == 'subscribe'){ //如果是订阅事件
-                $contentStr = "欢迎订阅misaka去年夏天！\n更多精彩内容：http://blog.csdn.net/misakaqunianxiatian";
-                $resultStr = sprintf($textTpl, $fromUsername, $toUsername, $time, $msgtype, $contentStr);
-                echo $resultStr;
-                exit();
+            switch($msgType){
+                case "event":
+                    if($event=="subscribe"){
+                        $contentStr = "Hi,欢迎关注!"."\n"."回复数字'1'"."\n"."回复数字'2'";
+                    }
+                    break;
+                case "text":
+                    switch($keyword){
+                        case "1":
+                            $contentStr = "莎士比亚："."\n"."黑夜无论怎样悠长，白昼总会到来。.";
+                            break;
+                        case "2":
+                            $contentStr = "莎士比亚:"."\n"."适当的悲哀可以表示感情的深切，过度的伤心却可以证明智慧的欠缺.";
+                            break;
+                        default:
+                            $contentStr = "对不起,你的内容我会稍后回复";
+                    }
+                    break;
             }
+            $msgType = "text";
+            $resultStr = sprintf($textTpl, $fromUsername, $toUsername, $time, $msgType, $contentStr);
+            echo $resultStr;
+        }else {
+            echo "";
+            exit;
         }
+    }
+
+    private function checkSignature()
+    {
+        // you must define TOKEN by yourself
+        if (!defined("TOKEN")) {
+            throw new Exception('TOKEN is not defined!');
+        }
+
+        $signature = $_GET["signature"];
+        $timestamp = $_GET["timestamp"];
+        $nonce = $_GET["nonce"];
+
+        $token = TOKEN;
+        $tmpArr = array($token, $timestamp, $nonce);
+        // use SORT_STRING rule
+        sort($tmpArr, SORT_STRING);
+        $tmpStr = implode( $tmpArr );
+        $tmpStr = sha1( $tmpStr );
+
+        if( $tmpStr == $signature ){
+            return true;
+        }else{
+            return false;
+        }
+    }
 }
+
+
 ?>
